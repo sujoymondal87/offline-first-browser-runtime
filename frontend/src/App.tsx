@@ -56,12 +56,6 @@ export default function App() {
           <p className="text-xs text-gray-500 mt-0.5">Works without internet after install</p>
         </div>
         <div className="flex items-center gap-3">
-          {/* iOS audio lock indicator */}
-          {!audioUnlocked && (
-            <span className="text-xs text-amber-400 flex items-center gap-1">
-              🔒 Tap to unlock audio
-            </span>
-          )}
           {/* Online/offline badge */}
           <span className={`text-xs px-2 py-1 rounded-full font-mono ${isOnline ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
             {isOnline ? '● online' : '● offline'}

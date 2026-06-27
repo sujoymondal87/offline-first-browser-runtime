@@ -30,7 +30,7 @@ router.post('/sync', async (req, res) => {
 router.get('/recent', async (_req, res) => {
   const { data, error } = await supabase
     .from('sessions')
-    .select('*, packs(title), blocks(title)')
+    .select('*, packs(title)')
     .order('synced_at', { ascending: false })
     .limit(20);
 

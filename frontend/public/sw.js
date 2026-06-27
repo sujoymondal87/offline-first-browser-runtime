@@ -1,12 +1,8 @@
 const CACHE_NAME = 'offline-guide-v1';
-const SHELL_ASSETS = [
-  '/',
-  '/index.html',
-];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL_ASSETS))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(['/', '/index.html']))
   );
   self.skipWaiting();
 });
@@ -28,16 +24,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for HTML, cache-first for assets
+  // Navigation: serve index.html from cache if network fails
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() =>
-        caches.match('/index.html').then(r => r || fetch(event.request))
-      )
+      fetch(event.request)
+        .then(response => {
+          // Cache the fresh index.html
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }
 
+  // All other requests: cache-first, then network + cache
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
@@ -47,7 +49,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
-      });
+      }).catch(() => cached ?? new Response('Offline', { status: 503 }));
     })
   );
 });

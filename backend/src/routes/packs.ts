@@ -26,15 +26,7 @@ router.get('/:packId', async (req, res) => {
 
   if (packError) return res.status(404).json({ error: 'Pack not found' });
 
-  const { data: blocks, error: blocksError } = await supabase
-    .from('blocks')
-    .select('*')
-    .eq('pack_id', packId)
-    .order('stop_number', { ascending: true });
-
-  if (blocksError) return res.status(500).json({ error: blocksError.message });
-
-  return res.json({ ...pack, blocks });
+  return res.json(pack);
 });
 
 export default router;
