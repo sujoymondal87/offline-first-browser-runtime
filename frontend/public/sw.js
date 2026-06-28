@@ -1,4 +1,4 @@
-const CACHE_NAME = 'offline-guide-v1';
+const CACHE_NAME = 'offline-guide-v2';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -19,37 +19,30 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Never intercept API calls or cross-origin requests
+  // Pass through: API calls and cross-origin (CDN, Supabase, etc.)
   if (url.pathname.startsWith('/api/') || url.origin !== self.location.origin) {
     return;
   }
 
-  // Navigation: serve index.html from cache if network fails
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          // Cache the fresh index.html
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
-
-  // All other requests: cache-first, then network + cache
+  // Network-first for everything: online = transparent, offline = cache fallback
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
+    fetch(event.request)
+      .then(response => {
         if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
-      }).catch(() => cached ?? new Response('Offline', { status: 503 }));
-    })
+      })
+      .catch(() => {
+        return caches.match(event.request).then(cached => {
+          if (cached) return cached;
+          // For navigations, fall back to index.html
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+          return new Response('Offline', { status: 503 });
+        });
+      })
   );
 });
