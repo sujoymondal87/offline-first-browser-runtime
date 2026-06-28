@@ -24,6 +24,33 @@ export function clearFailedAssets(packId: string) {
   localStorage.removeItem(getFailedKey(packId));
 }
 
+export function getTotalFailedCount(): number {
+  let total = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(RETRY_KEY_PREFIX)) {
+      try {
+        const arr = JSON.parse(localStorage.getItem(key) || '[]');
+        total += arr.length;
+      } catch {}
+    }
+  }
+  return total;
+}
+
+export function getAllFailedPackIds(): string[] {
+  const ids: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(RETRY_KEY_PREFIX)) {
+      const packId = key.slice(RETRY_KEY_PREFIX.length);
+      const assets = getFailedAssets(packId);
+      if (assets.length > 0) ids.push(packId);
+    }
+  }
+  return ids;
+}
+
 async function downloadBlob(url: string): Promise<Blob> {
   const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);

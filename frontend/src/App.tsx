@@ -5,6 +5,8 @@ import SessionsDashboard from './components/SessionsDashboard';
 import { Pack } from './types';
 import { flushSessionQueue } from './lib/session';
 import { getAllInstalledPacks, getAllQueuedSessions } from './lib/idb';
+import { getTotalFailedCount, getAllFailedPackIds, installPack } from './lib/installer';
+import { getPack } from './lib/idb';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const LAST_POSITION_KEY = 'offline_guide_last_position';
@@ -38,21 +40,33 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [queuedCount, setQueuedCount] = useState(0);
-  const [syncing, setSyncing] = useState(false);
+  const [_queuedCount, setQueuedCount] = useState(0);
+  const [failedDownloads, setFailedDownloads] = useState(0);
+  const [retrying, setRetrying] = useState(false);
 
   async function refreshQueueCount() {
     const q = await getAllQueuedSessions();
     setQueuedCount(q.length);
   }
 
-  async function handleSync(e: React.MouseEvent) {
+  function refreshFailedCount() {
+    setFailedDownloads(getTotalFailedCount());
+  }
+
+  async function handleRetryAllFailed(e: React.MouseEvent) {
     e.stopPropagation();
-    if (!isOnline || syncing) return;
-    setSyncing(true);
-    await flushSessionQueue();
-    await refreshQueueCount();
-    setSyncing(false);
+    if (!isOnline || retrying) return;
+    setRetrying(true);
+    const packIds = getAllFailedPackIds();
+    for (const packId of packIds) {
+      try {
+        const cached = await getPack(packId);
+        const pack = cached ?? await fetch(`${API_URL}/api/packs/${packId}`).then(r => r.json());
+        await installPack(pack, pack.blocks || [], () => {});
+      } catch {}
+    }
+    refreshFailedCount();
+    setRetrying(false);
   }
 
   async function loadPacks(online: boolean) {
@@ -100,6 +114,7 @@ export default function App() {
       if (online) await flushSessionQueue();
       loadPacks(online);
       refreshQueueCount();
+      refreshFailedCount();
     });
 
     const handleOnline = () => probeOnline().then(async online => {
@@ -142,17 +157,21 @@ export default function App() {
           <p className="text-xs text-gray-500 mt-0.5">Works without internet after install</p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Sync button — visible when there are queued sessions */}
-          {queuedCount > 0 && (
+          {/* Failed downloads — retry all from header */}
+          {failedDownloads > 0 && isOnline && (
             <button
-              onClick={handleSync}
-              disabled={!isOnline || syncing}
-              className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-amber-900/50 text-amber-300 hover:bg-amber-800/60 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title={isOnline ? 'Sync now' : 'Will sync when online'}
+              onClick={handleRetryAllFailed}
+              disabled={retrying}
+              className="text-xs px-2 py-1 rounded-full bg-amber-900/50 text-amber-300 hover:bg-amber-800/60 disabled:opacity-50 transition-colors"
             >
-              <i className={`fa-solid fa-rotate ${syncing ? 'animate-spin' : ''}`} />
-              {queuedCount} pending
+              <i className={`fa-solid fa-rotate mr-1 ${retrying ? 'animate-spin' : ''}`} />
+              {failedDownloads} failed
             </button>
+          )}
+          {failedDownloads > 0 && !isOnline && (
+            <span className="text-xs px-2 py-1 rounded-full bg-amber-900/50 text-amber-300 font-mono">
+              ⚠ {failedDownloads} failed
+            </span>
           )}
           <span className={`text-xs px-2 py-1 rounded-full font-mono ${isOnline ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
             {isOnline ? '● online' : '● offline'}
@@ -169,6 +188,7 @@ export default function App() {
               isOnline={isOnline}
               initialBlockId={initialBlockId}
               onPositionChange={handlePositionChange}
+              onProgressChange={refreshFailedCount}
             />
             <div className="mt-12">
               <SessionsDashboard isOnline={isOnline} packId={selectedPack.id} />

@@ -14,9 +14,10 @@ interface Props {
   isOnline: boolean;
   initialBlockId?: string | null;
   onPositionChange?: (packId: string, blockId: string) => void;
+  onProgressChange?: () => void;
 }
 
-export default function Player({ pack, onBack: _onBack, isOnline, initialBlockId, onPositionChange }: Props) {
+export default function Player({ pack, onBack: _onBack, isOnline, initialBlockId, onPositionChange, onProgressChange }: Props) {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [currentBlock, setCurrentBlock] = useState<Block | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -144,16 +145,6 @@ export default function Player({ pack, onBack: _onBack, isOnline, initialBlockId
     }
   }
 
-  async function handleRetryFailed() {
-    if (!isOnline || !progress) return;
-    const res = await fetch(`${API_URL}/api/packs/${pack.id}`);
-    const data = await res.json();
-    await installPack(data, data.blocks || [], (p) => {
-      setProgress(p);
-      if (p.status === 'done') setIsInstalled(true);
-    });
-  }
-
   function handleIOSTap() {
     if (audioUnlocked) return;
     const silent = new Audio();
@@ -236,15 +227,6 @@ export default function Player({ pack, onBack: _onBack, isOnline, initialBlockId
         </div>
       )}
 
-      {/* Failed assets — shown after install completes with missing files */}
-      {progress?.status === 'done' && progress.failed.length > 0 && (
-        <button
-          onClick={e => { e.stopPropagation(); handleRetryFailed(); }}
-          className="mb-6 w-full text-left border border-amber-800/50 rounded-lg p-3 bg-amber-900/20 text-xs text-amber-400 hover:bg-amber-900/40 transition-colors"
-        >
-          ⚠ {progress.failed.length} asset{progress.failed.length > 1 ? 's' : ''} failed to download — tap to retry
-        </button>
-      )}
 
       {/* Block player */}
       {currentBlock && (
@@ -305,6 +287,7 @@ export default function Player({ pack, onBack: _onBack, isOnline, initialBlockId
         setIsInstalled(true);
         setCurrentBlock(data.blocks?.[0] || null);
         trackEvent(pack.id, data.blocks?.[0]?.id || '', 'installed');
+        onProgressChange?.();
       }
     });
   }
