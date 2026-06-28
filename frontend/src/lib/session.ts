@@ -14,11 +14,6 @@ export async function trackEvent(packId: string, blockId: string, event: Session
   };
 
   await enqueueSession(record);
-
-  // Try immediate sync if online
-  if (navigator.onLine) {
-    await flushSessionQueue();
-  }
 }
 
 export async function flushSessionQueue(): Promise<number> {

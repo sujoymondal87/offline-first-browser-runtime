@@ -58,19 +58,11 @@ export default function App() {
       }
     });
     const handleOffline = () => { setIsOnline(false); loadPacks(false); };
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        probeOnline().then(online => { setIsOnline(online); loadPacks(online); });
-      }
-    };
-
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
