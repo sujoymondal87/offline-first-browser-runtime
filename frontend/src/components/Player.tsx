@@ -239,7 +239,7 @@ export default function Player({ pack, onBack: _onBack, isOnline, initialBlockId
       {/* Failed assets — shown after install completes with missing files */}
       {progress?.status === 'done' && progress.failed.length > 0 && (
         <button
-          onClick={handleRetryFailed}
+          onClick={e => { e.stopPropagation(); handleRetryFailed(); }}
           className="mb-6 w-full text-left border border-amber-800/50 rounded-lg p-3 bg-amber-900/20 text-xs text-amber-400 hover:bg-amber-900/40 transition-colors"
         >
           ⚠ {progress.failed.length} asset{progress.failed.length > 1 ? 's' : ''} failed to download — tap to retry
