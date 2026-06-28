@@ -71,24 +71,24 @@ export default function App() {
     setRetrying(false);
   }
 
-  async function loadPacks(online: boolean) {
+  async function loadPacks(online: boolean, restorePosition = false) {
     setLoading(true);
     if (online) {
       try {
         const res = await fetch(`${API_URL}/api/packs`);
         const data = await res.json();
         setPacks(data);
-        restoreLastPosition(data);
+        if (restorePosition) restoreLastPosition(data);
       } catch {
         setIsOnline(false);
         const data = await getAllInstalledPacks();
         setPacks(data);
-        restoreLastPosition(data);
+        if (restorePosition) restoreLastPosition(data);
       }
     } else {
       const data = await getAllInstalledPacks();
       setPacks(data);
-      restoreLastPosition(data);
+      if (restorePosition) restoreLastPosition(data);
     }
     setLoading(false);
   }
@@ -123,7 +123,7 @@ export default function App() {
     probeOnline().then(async online => {
       setIsOnline(online);
       if (online) await flushSessionQueue();
-      loadPacks(online);
+      loadPacks(online, true); // restore position only on initial mount
       refreshQueueCount();
       refreshFailedCount();
     });
