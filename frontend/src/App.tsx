@@ -62,7 +62,9 @@ export default function App() {
       try {
         const cached = await getPack(packId);
         const pack = cached ?? await fetch(`${API_URL}/api/packs/${packId}`).then(r => r.json());
-        await installPack(pack, pack.blocks || [], () => {});
+        await installPack(pack, pack.blocks || [], (p) => {
+          if (p.status === 'done') refreshFailedCount();
+        });
       } catch {}
     }
     refreshFailedCount();
@@ -101,11 +103,20 @@ export default function App() {
     }
   }
 
-  function goHome() {
+  async function goHome() {
     clearLastPosition();
     setSelectedPack(null);
     setInitialBlockId(null);
-    if (isOnline) flushSessionQueue().then(refreshQueueCount);
+    // Re-probe on home to catch offline→online transitions
+    const online = await probeOnline();
+    if (online !== isOnline) setIsOnline(online);
+    if (online) {
+      await flushSessionQueue();
+      loadPacks(true);
+      refreshQueueCount();
+    } else if (isOnline !== online) {
+      loadPacks(false);
+    }
   }
 
   useEffect(() => {
@@ -128,9 +139,24 @@ export default function App() {
     const handleOffline = () => { setIsOnline(false); loadPacks(false); };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    // Poll every 5s when offline to catch reconnection (DevTools + real network)
+    const poll = setInterval(async () => {
+      if (navigator.onLine === false) return; // definitely offline, skip probe
+      const online = await probeOnline();
+      setIsOnline(prev => {
+        if (online && !prev) {
+          flushSessionQueue().then(refreshQueueCount);
+          loadPacks(true);
+        }
+        return online !== prev ? online : prev;
+      });
+    }, 5000);
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      clearInterval(poll);
     };
   }, []);
 
