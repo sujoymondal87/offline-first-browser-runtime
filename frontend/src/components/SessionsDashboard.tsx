@@ -1,29 +1,44 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { SessionRecord } from '../types';
 import { fetchRecentSessions } from '../lib/session';
 import { getAllQueuedSessions } from '../lib/idb';
+import { getDeviceId } from '../lib/deviceId';
 
 interface Props {
   isOnline: boolean;
+  packId?: string;
 }
 
-export default function SessionsDashboard({ isOnline }: Props) {
+const MY_DEVICE = getDeviceId();
+const POLL_INTERVAL = 10_000;
+
+export default function SessionsDashboard({ isOnline, packId }: Props) {
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [queued, setQueued] = useState(0);
   const [loading, setLoading] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function load() {
+    const local = await getAllQueuedSessions();
+    setQueued(local.length);
+    if (isOnline) {
+      const remote = await fetchRecentSessions(packId);
+      setSessions(remote);
+    }
+    setLoading(false);
+  }
 
   useEffect(() => {
-    async function load() {
-      const local = await getAllQueuedSessions();
-      setQueued(local.length);
-      if (isOnline) {
-        const remote = await fetchRecentSessions();
-        setSessions(remote);
-      }
-      setLoading(false);
-    }
     load();
-  }, [isOnline]);
+
+    if (isOnline) {
+      intervalRef.current = setInterval(load, POLL_INTERVAL);
+    }
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isOnline, packId]);
 
   return (
     <div>
@@ -54,24 +69,31 @@ export default function SessionsDashboard({ isOnline }: Props) {
               </tr>
             </thead>
             <tbody>
-              {sessions.map((s, i) => (
-                <tr key={i} className="border-b border-gray-800/50 last:border-0 hover:bg-gray-900/50">
-                  <td className="px-4 py-2">
-                    <span className={`px-1.5 py-0.5 rounded font-mono ${
-                      s.event === 'installed' ? 'bg-blue-900/40 text-blue-400' :
-                      s.event === 'completed' ? 'bg-green-900/40 text-green-400' :
-                      'bg-gray-800 text-gray-400'
-                    }`}>
-                      {s.event}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-gray-400">{s.packs?.title || s.pack_id}</td>
-                  <td className="px-4 py-2 text-gray-400">{s.blocks?.title || s.block_id}</td>
-                  <td className="px-4 py-2 text-gray-600 font-mono">
-                    {s.synced_at ? new Date(s.synced_at).toLocaleTimeString() : '—'}
-                  </td>
-                </tr>
-              ))}
+              {sessions.map((s, i) => {
+                const isMe = s.device_id === MY_DEVICE;
+                return (
+                  <tr
+                    key={i}
+                    className={`border-b border-gray-800/50 last:border-0 ${isMe ? 'bg-blue-950/40' : 'hover:bg-gray-900/50'}`}
+                  >
+                    <td className="px-4 py-2 flex items-center gap-2">
+                      <span className={`px-1.5 py-0.5 rounded font-mono ${
+                        s.event === 'installed' ? 'bg-blue-900/40 text-blue-400' :
+                        s.event === 'completed' ? 'bg-green-900/40 text-green-400' :
+                        'bg-gray-800 text-gray-400'
+                      }`}>
+                        {s.event}
+                      </span>
+                      {isMe && <span className="text-blue-400 text-xs">you</span>}
+                    </td>
+                    <td className="px-4 py-2 text-gray-400">{s.packs?.title || s.pack_id}</td>
+                    <td className="px-4 py-2 text-gray-400">{s.block_id}</td>
+                    <td className="px-4 py-2 text-gray-600 font-mono">
+                      {s.synced_at ? new Date(s.synced_at).toLocaleTimeString() : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

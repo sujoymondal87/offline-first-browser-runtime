@@ -146,6 +146,36 @@ export async function storePack(pack: object): Promise<void> {
   });
 }
 
+export async function getAllInstalledPacks(): Promise<any[]> {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(['packs', 'install_state'], 'readonly');
+    const stateReq = tx.objectStore('install_state').getAll();
+    stateReq.onsuccess = () => {
+      const installedIds: string[] = stateReq.result
+        .filter((s: any) => s.installed)
+        .map((s: any) => s.pack_id);
+
+      if (installedIds.length === 0) return resolve([]);
+
+      const packsStore = tx.objectStore('packs');
+      const packs: any[] = [];
+      let remaining = installedIds.length;
+
+      installedIds.forEach(id => {
+        const req = packsStore.get(id);
+        req.onsuccess = () => {
+          if (req.result) packs.push(req.result);
+          remaining--;
+          if (remaining === 0) resolve(packs);
+        };
+        req.onerror = () => { remaining--; if (remaining === 0) resolve(packs); };
+      });
+    };
+    stateReq.onerror = () => reject(stateReq.error);
+  });
+}
+
 export async function getPack(packId: string): Promise<any | null> {
   const database = await openDB();
   return new Promise((resolve, reject) => {

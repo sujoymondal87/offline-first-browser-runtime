@@ -42,9 +42,12 @@ export async function flushSessionQueue(): Promise<number> {
   }
 }
 
-export async function fetchRecentSessions() {
+export async function fetchRecentSessions(packId?: string) {
   try {
-    const res = await fetch(`${API_URL}/api/sessions/recent`);
+    const url = packId
+      ? `${API_URL}/api/sessions/recent?pack_id=${encodeURIComponent(packId)}`
+      : `${API_URL}/api/sessions/recent`;
+    const res = await fetch(url);
     if (!res.ok) return [];
     return res.json();
   } catch {

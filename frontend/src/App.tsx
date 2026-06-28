@@ -4,6 +4,7 @@ import Player from './components/Player';
 import SessionsDashboard from './components/SessionsDashboard';
 import { Pack } from './types';
 import { flushSessionQueue } from './lib/session';
+import { getAllInstalledPacks } from './lib/idb';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -30,13 +31,18 @@ export default function App() {
     };
   }, []);
 
-  // Fetch packs from backend (only when online)
+  // Fetch packs — from API when online, from IDB when offline
   useEffect(() => {
-    if (!isOnline) { setLoading(false); return; }
-    fetch(`${API_URL}/api/packs`)
-      .then(r => r.json())
-      .then(data => { setPacks(data); setLoading(false); })
-      .catch(() => setLoading(false));
+    if (isOnline) {
+      fetch(`${API_URL}/api/packs`)
+        .then(r => r.json())
+        .then(data => { setPacks(data); setLoading(false); })
+        .catch(() => setLoading(false));
+    } else {
+      getAllInstalledPacks()
+        .then(data => { setPacks(data); setLoading(false); })
+        .catch(() => setLoading(false));
+    }
   }, [isOnline]);
 
   // iOS audio unlock on first tap
@@ -68,11 +74,16 @@ export default function App() {
 
       <main className="max-w-4xl mx-auto px-6 py-8">
         {selectedPack ? (
-          <Player
-            pack={selectedPack}
-            onBack={() => setSelectedPack(null)}
-            isOnline={isOnline}
-          />
+          <>
+            <Player
+              pack={selectedPack}
+              onBack={() => setSelectedPack(null)}
+              isOnline={isOnline}
+            />
+            <div className="mt-12">
+              <SessionsDashboard isOnline={isOnline} packId={selectedPack.id} />
+            </div>
+          </>
         ) : (
           <>
             <PackList

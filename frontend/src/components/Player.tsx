@@ -260,8 +260,6 @@ export default function Player({ pack, onBack: _onBack, isOnline }: Props) {
             <p className="text-sm text-gray-400 leading-relaxed">{currentBlock.text}</p>
           </div>
 
-          {/* Footer — blank */}
-          <div className="border-t border-gray-800 px-5 py-3" />
         </div>
       )}
 

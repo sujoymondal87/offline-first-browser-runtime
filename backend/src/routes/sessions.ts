@@ -27,13 +27,20 @@ router.post('/sync', async (req, res) => {
 });
 
 // GET /api/sessions/recent — last 20 events for dashboard
-router.get('/recent', async (_req, res) => {
-  const { data, error } = await supabase
+router.get('/recent', async (req, res) => {
+  const { pack_id } = req.query;
+
+  let query = supabase
     .from('sessions')
     .select('*, packs(title)')
     .order('synced_at', { ascending: false })
     .limit(20);
 
+  if (pack_id && typeof pack_id === 'string') {
+    query = query.eq('pack_id', pack_id);
+  }
+
+  const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
   return res.json(data);
 });
