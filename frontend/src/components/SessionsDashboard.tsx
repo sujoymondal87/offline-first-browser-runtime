@@ -14,12 +14,12 @@ export default function SessionsDashboard({ isOnline }: Props) {
 
   useEffect(() => {
     async function load() {
-      const [remote, local] = await Promise.all([
-        fetchRecentSessions(),
-        getAllQueuedSessions(),
-      ]);
-      setSessions(remote);
+      const local = await getAllQueuedSessions();
       setQueued(local.length);
+      if (isOnline) {
+        const remote = await fetchRecentSessions();
+        setSessions(remote);
+      }
       setLoading(false);
     }
     load();

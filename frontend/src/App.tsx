@@ -7,18 +7,34 @@ import { flushSessionQueue } from './lib/session';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+async function checkConnectivity(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_URL}/health`, { cache: 'no-store' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export default function App() {
   const [packs, setPacks] = useState<Pack[]>([]);
   const [selectedPack, setSelectedPack] = useState<Pack | null>(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Online/offline detection + sync flush
+  // Real connectivity check on mount + browser online/offline events
   useEffect(() => {
-    const handleOnline = async () => {
-      setIsOnline(true);
-      await flushSessionQueue();
+    checkConnectivity().then(online => {
+      setIsOnline(online);
+      if (!online) setLoading(false);
+    });
+
+    const handleOnline = () => {
+      checkConnectivity().then(async online => {
+        setIsOnline(online);
+        if (online) await flushSessionQueue();
+      });
     };
     const handleOffline = () => setIsOnline(false);
 
