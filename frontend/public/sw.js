@@ -1,48 +1,35 @@
-const CACHE_NAME = 'offline-guide-v2';
+import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { NavigationRoute, registerRoute } from 'workbox-routing';
+import { NetworkFirst, CacheFirst } from 'workbox-strategies';
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(['/', '/index.html']))
-  );
-  self.skipWaiting();
-});
+const CACHE_NAME = 'offline-guide-v3';
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
+// Precache all build assets (hashed filenames injected at build time)
+precacheAndRoute(self.__WB_MANIFEST);
+cleanupOutdatedCaches();
 
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+// Navigation: network-first, fall back to cached index.html
+registerRoute(
+  new NavigationRoute(
+    new NetworkFirst({
+      cacheName: CACHE_NAME,
+      networkTimeoutSeconds: 3,
+    })
+  )
+);
 
-  // Pass through: API calls and cross-origin (CDN, Supabase, etc.)
-  if (url.pathname.startsWith('/api/') || url.origin !== self.location.origin) {
-    return;
-  }
+// Static assets: cache-first
+registerRoute(
+  ({ request }) => ['script', 'style', 'image', 'font'].includes(request.destination),
+  new CacheFirst({ cacheName: CACHE_NAME })
+);
 
-  // Network-first for everything: online = transparent, offline = cache fallback
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(event.request).then(cached => {
-          if (cached) return cached;
-          // For navigations, fall back to index.html
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-          return new Response('Offline', { status: 503 });
-        });
-      })
-  );
+// Never intercept API calls
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/api/'),
+  ({ request }) => fetch(request)
+);
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
