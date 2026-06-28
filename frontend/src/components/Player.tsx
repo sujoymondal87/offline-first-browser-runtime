@@ -234,21 +234,20 @@ export default function Player({ pack, onBack: _onBack, isOnline, initialBlockId
         <div className="border border-gray-800 rounded-lg bg-gray-900 overflow-hidden">
 
           {/* Media — 16:9 */}
-          {currentBlock.media_type === 'video' && mediaSrc && (
-            <div className="w-full aspect-video bg-black">
-              <video
-                ref={videoRef}
-                src={mediaSrc}
-                className="w-full h-full object-contain"
-                playsInline
-                autoPlay
-                onEnded={handleAutoNext}
-              />
+          {currentBlock.media_type === 'video' && (
+            <div className="w-full aspect-video bg-black flex items-center justify-center">
+              {mediaSrc
+                ? <video ref={videoRef} src={mediaSrc} className="w-full h-full object-contain" playsInline autoPlay onEnded={handleAutoNext} />
+                : <span className="text-xs text-gray-600">Media not available</span>
+              }
             </div>
           )}
-          {currentBlock.media_type === 'image' && mediaSrc && (
-            <div className="w-full aspect-video bg-black">
-              <img src={mediaSrc} alt="" className="w-full h-full object-contain" />
+          {currentBlock.media_type === 'image' && (
+            <div className="w-full aspect-video bg-black flex items-center justify-center">
+              {mediaSrc
+                ? <img src={mediaSrc} alt="" className="w-full h-full object-contain" />
+                : <span className="text-xs text-gray-600">Image not available</span>
+              }
             </div>
           )}
 

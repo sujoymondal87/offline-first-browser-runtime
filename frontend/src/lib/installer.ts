@@ -107,8 +107,10 @@ export async function installPack(
 
     if (stillFailed.length > 0) {
       setFailedAssets(pack.id, stillFailed);
-      onProgress({ total, completed, failed: stillFailed, status: 'error' });
-      return false;
+      // Mark installed anyway — missing assets show placeholder, rest works offline
+      await setInstallState(pack.id, { installed: true, installed_at: new Date().toISOString() });
+      onProgress({ total, completed, failed: stillFailed, status: 'done' });
+      return true;
     }
   }
 
