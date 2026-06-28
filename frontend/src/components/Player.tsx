@@ -12,9 +12,11 @@ interface Props {
   pack: Pack;
   onBack: () => void;
   isOnline: boolean;
+  initialBlockId?: string | null;
+  onPositionChange?: (packId: string, blockId: string) => void;
 }
 
-export default function Player({ pack, onBack: _onBack, isOnline }: Props) {
+export default function Player({ pack, onBack: _onBack, isOnline, initialBlockId, onPositionChange }: Props) {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [currentBlock, setCurrentBlock] = useState<Block | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -34,7 +36,8 @@ export default function Player({ pack, onBack: _onBack, isOnline }: Props) {
         const cached = await getPack(pack.id);
         if (cached?.blocks) {
           setBlocks(cached.blocks);
-          setCurrentBlock(cached.blocks[0]);
+          const start = initialBlockId ? cached.blocks.find((b: Block) => b.id === initialBlockId) : null;
+          setCurrentBlock(start ?? cached.blocks[0]);
           setIsInstalled(true);
           setLoading(false);
           return;
@@ -45,8 +48,10 @@ export default function Player({ pack, onBack: _onBack, isOnline }: Props) {
         try {
           const res = await fetch(`${API_URL}/api/packs/${pack.id}`);
           const data = await res.json();
-          setBlocks(data.blocks || []);
-          setCurrentBlock(data.blocks?.[0] || null);
+          const blocks = data.blocks || [];
+          setBlocks(blocks);
+          const start = initialBlockId ? blocks.find((b: Block) => b.id === initialBlockId) : null;
+          setCurrentBlock(start ?? blocks[0] ?? null);
         } catch {}
       }
       setLoading(false);
@@ -81,6 +86,7 @@ export default function Player({ pack, onBack: _onBack, isOnline }: Props) {
     }
 
     trackEvent(pack.id, currentBlock.id, 'started');
+    onPositionChange?.(pack.id, currentBlock.id);
   }, [currentBlock?.id, isInstalled]);
 
   // Autoplay audio when src is ready

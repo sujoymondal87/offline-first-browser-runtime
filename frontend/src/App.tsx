@@ -7,6 +7,20 @@ import { flushSessionQueue } from './lib/session';
 import { getAllInstalledPacks } from './lib/idb';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const LAST_POSITION_KEY = 'offline_guide_last_position';
+
+function saveLastPosition(packId: string, blockId: string) {
+  localStorage.setItem(LAST_POSITION_KEY, JSON.stringify({ packId, blockId }));
+}
+function clearLastPosition() {
+  localStorage.removeItem(LAST_POSITION_KEY);
+}
+function getLastPosition(): { packId: string; blockId: string } | null {
+  try {
+    const raw = localStorage.getItem(LAST_POSITION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
 
 async function probeOnline(): Promise<boolean> {
   try {
@@ -20,6 +34,7 @@ async function probeOnline(): Promise<boolean> {
 export default function App() {
   const [packs, setPacks] = useState<Pack[]>([]);
   const [selectedPack, setSelectedPack] = useState<Pack | null>(null);
+  const [initialBlockId, setInitialBlockId] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -30,17 +45,29 @@ export default function App() {
         const res = await fetch(`${API_URL}/api/packs`);
         const data = await res.json();
         setPacks(data);
+        restoreLastPosition(data);
       } catch {
-        // fetch failed — fall back to IDB
         setIsOnline(false);
         const data = await getAllInstalledPacks();
         setPacks(data);
+        restoreLastPosition(data);
       }
     } else {
       const data = await getAllInstalledPacks();
       setPacks(data);
+      restoreLastPosition(data);
     }
     setLoading(false);
+  }
+
+  function restoreLastPosition(loadedPacks: Pack[]) {
+    const last = getLastPosition();
+    if (!last) return;
+    const pack = loadedPacks.find(p => p.id === last.packId);
+    if (pack) {
+      setSelectedPack(pack);
+      setInitialBlockId(last.blockId);
+    }
   }
 
   // Probe on mount — source of truth for initial online state
@@ -77,7 +104,7 @@ export default function App() {
       <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <div
           className={selectedPack ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}
-          onClick={() => selectedPack && setSelectedPack(null)}
+          onClick={() => { if (selectedPack) { clearLastPosition(); setSelectedPack(null); setInitialBlockId(null); } }}
         >
           <h1 className="text-lg font-semibold tracking-tight">Offline Audio Guide</h1>
           <p className="text-xs text-gray-500 mt-0.5">Works without internet after install</p>
@@ -92,7 +119,13 @@ export default function App() {
       <main className="max-w-4xl mx-auto px-6 py-8">
         {selectedPack ? (
           <>
-            <Player pack={selectedPack} onBack={() => setSelectedPack(null)} isOnline={isOnline} />
+            <Player
+              pack={selectedPack}
+              onBack={() => { clearLastPosition(); setSelectedPack(null); setInitialBlockId(null); }}
+              isOnline={isOnline}
+              initialBlockId={initialBlockId}
+              onPositionChange={saveLastPosition}
+            />
             <div className="mt-12">
               <SessionsDashboard isOnline={isOnline} packId={selectedPack.id} />
             </div>
