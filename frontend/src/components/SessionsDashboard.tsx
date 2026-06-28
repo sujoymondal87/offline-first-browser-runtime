@@ -17,12 +17,17 @@ export default function SessionsDashboard({ isOnline, packId }: Props) {
   const [queued, setQueued] = useState(0);
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isOnlineRef = useRef(isOnline);
+  const packIdRef = useRef(packId);
+
+  useEffect(() => { isOnlineRef.current = isOnline; }, [isOnline]);
+  useEffect(() => { packIdRef.current = packId; }, [packId]);
 
   async function load() {
     const local = await getAllQueuedSessions();
     setQueued(local.length);
-    if (isOnline) {
-      const remote = await fetchRecentSessions(packId);
+    if (isOnlineRef.current) {
+      const remote = await fetchRecentSessions(packIdRef.current);
       setSessions(remote);
     }
     setLoading(false);
@@ -31,8 +36,12 @@ export default function SessionsDashboard({ isOnline, packId }: Props) {
   useEffect(() => {
     load();
 
+    if (intervalRef.current) clearInterval(intervalRef.current);
+
     if (isOnline) {
       intervalRef.current = setInterval(load, POLL_INTERVAL);
+    } else {
+      intervalRef.current = null;
     }
 
     return () => {

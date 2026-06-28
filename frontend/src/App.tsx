@@ -23,11 +23,20 @@ export default function App() {
     };
     const handleOffline = () => setIsOnline(false);
 
+    // Re-check on visibility change — catches stale state when loaded from SW cache
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        setIsOnline(navigator.onLine);
+      }
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
