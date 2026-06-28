@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import PackList from './components/PackList';
 import Player from './components/Player';
 import SessionsDashboard from './components/SessionsDashboard';
@@ -23,22 +23,45 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
-  const initialised = useRef(false);
+  async function loadPacks(online: boolean) {
+    setLoading(true);
+    if (online) {
+      try {
+        const res = await fetch(`${API_URL}/api/packs`);
+        const data = await res.json();
+        setPacks(data);
+      } catch {
+        // fetch failed — fall back to IDB
+        setIsOnline(false);
+        const data = await getAllInstalledPacks();
+        setPacks(data);
+      }
+    } else {
+      const data = await getAllInstalledPacks();
+      setPacks(data);
+    }
+    setLoading(false);
+  }
 
-  // Probe backend on mount to get true connectivity (handles DevTools offline)
+  // Probe on mount — source of truth for initial online state
   useEffect(() => {
     probeOnline().then(online => {
       setIsOnline(online);
-      initialised.current = true;
+      loadPacks(online);
     });
 
     const handleOnline = () => probeOnline().then(async online => {
       setIsOnline(online);
-      if (online) await flushSessionQueue();
+      if (online) {
+        await flushSessionQueue();
+        loadPacks(true);
+      }
     });
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => { setIsOnline(false); loadPacks(false); };
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') probeOnline().then(setIsOnline);
+      if (document.visibilityState === 'visible') {
+        probeOnline().then(online => { setIsOnline(online); loadPacks(online); });
+      }
     };
 
     window.addEventListener('online', handleOnline);
@@ -50,28 +73,6 @@ export default function App() {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
-
-  // Load packs — API when online, IDB when offline
-  useEffect(() => {
-    if (!initialised.current && !isOnline) return; // wait for probe
-    setLoading(true);
-    if (isOnline) {
-      fetch(`${API_URL}/api/packs`)
-        .then(r => r.json())
-        .then(data => { setPacks(data); setLoading(false); })
-        .catch(async () => {
-          // Fetch failed despite probe — actually offline
-          setIsOnline(false);
-          const data = await getAllInstalledPacks();
-          setPacks(data);
-          setLoading(false);
-        });
-    } else {
-      getAllInstalledPacks()
-        .then(data => { setPacks(data); setLoading(false); })
-        .catch(() => setLoading(false));
-    }
-  }, [isOnline]);
 
   const handleUnlockAudio = useCallback(() => {
     if (audioUnlocked) return;
