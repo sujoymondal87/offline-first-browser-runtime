@@ -72,8 +72,9 @@ export default function App() {
 
   // Probe on mount — source of truth for initial online state
   useEffect(() => {
-    probeOnline().then(online => {
+    probeOnline().then(async online => {
       setIsOnline(online);
+      if (online) await flushSessionQueue();
       loadPacks(online);
     });
 

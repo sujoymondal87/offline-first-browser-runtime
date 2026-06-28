@@ -144,6 +144,16 @@ export default function Player({ pack, onBack: _onBack, isOnline, initialBlockId
     }
   }
 
+  async function handleRetryFailed() {
+    if (!isOnline || !progress) return;
+    const res = await fetch(`${API_URL}/api/packs/${pack.id}`);
+    const data = await res.json();
+    await installPack(data, data.blocks || [], (p) => {
+      setProgress(p);
+      if (p.status === 'done') setIsInstalled(true);
+    });
+  }
+
   function handleIOSTap() {
     if (audioUnlocked) return;
     const silent = new Audio();
@@ -223,10 +233,17 @@ export default function Player({ pack, onBack: _onBack, isOnline, initialBlockId
               style={{ width: `${progress.total ? (progress.completed / progress.total) * 100 : 0}%` }}
             />
           </div>
-          {progress.failed.length > 0 && (
-            <p className="text-xs text-amber-400 mt-2">⚠ {progress.failed.length} assets pending retry</p>
-          )}
         </div>
+      )}
+
+      {/* Failed assets — shown after install completes with missing files */}
+      {progress?.status === 'done' && progress.failed.length > 0 && (
+        <button
+          onClick={handleRetryFailed}
+          className="mb-6 w-full text-left border border-amber-800/50 rounded-lg p-3 bg-amber-900/20 text-xs text-amber-400 hover:bg-amber-900/40 transition-colors"
+        >
+          ⚠ {progress.failed.length} asset{progress.failed.length > 1 ? 's' : ''} failed to download — tap to retry
+        </button>
       )}
 
       {/* Block player */}
