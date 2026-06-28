@@ -51,7 +51,10 @@ export default function App() {
     <div className="min-h-screen bg-gray-950 text-gray-100" onClick={handleUnlockAudio}>
       {/* Header */}
       <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div>
+        <div
+          className={selectedPack ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}
+          onClick={() => selectedPack && setSelectedPack(null)}
+        >
           <h1 className="text-lg font-semibold tracking-tight">Offline Audio Guide</h1>
           <p className="text-xs text-gray-500 mt-0.5">Works without internet after install</p>
         </div>
