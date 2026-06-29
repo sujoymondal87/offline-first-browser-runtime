@@ -6,9 +6,13 @@
 
 > **Live demo — offline playback after install, session sync on reconnect**
 
+**Live Demo:** https://offlineguide.vercel.app
+**Backend API:** https://offline-first-browser-runtime.onrender.com
+**Case Study:** https://sujoymondal-tech.vercel.app/case-studies/when-localstorage-stopped-being-enough
+
 ---
 
-## Production heritage
+## Production Context
 
 Extracted from the offline runtime layer of a production no-code platform serving 30+ cultural institution applications across Spain, France, and Belgium. The production implementation handles encrypted scenario data, multi-language TTS, and chunked media blobs across live museum and heritage site deployments — with 600+ verified reviews from users across 35+ countries.
 
@@ -104,14 +108,11 @@ Verify the backend is live:
 curl http://localhost:3000/health
 ```
 
-Run the Supabase schema first:
-```bash
-# Paste supabase-schema.sql into your Supabase SQL editor
-```
+Run the Supabase schema first — paste `supabase-schema.sql` into your Supabase SQL editor.
 
 ---
 
-## Key engineering decisions
+## Architecture Decisions
 
 **Why IndexedDB instead of the Cache API for media assets?**
 The Cache API is designed for HTTP responses — it stores request/response pairs and has no API for chunking large binary files. IndexedDB is a transactional object store that accepts arbitrary blobs. Splitting assets into 1MB chunks and storing them individually avoids browser storage limits on single-blob writes and allows partial retry — if one chunk fails, only that chunk is re-downloaded, not the whole file.
