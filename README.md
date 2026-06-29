@@ -7,7 +7,9 @@
 > **Live demo — offline playback after install, session sync on reconnect**
 
 **Live Demo:** https://offlineguide.vercel.app
+
 **Backend API:** https://offline-first-browser-runtime.onrender.com
+
 **Case Study:** https://sujoymondal-tech.vercel.app/case-studies/when-localstorage-stopped-being-enough
 
 ---
